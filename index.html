@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-03">
+<meta name="build-version" content="2026-09-28-04">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – CSR Sustain</title>
@@ -194,6 +194,7 @@ function cleanJwk(j){ const o={kty:j.kty,crv:j.crv,x:j.x,y:j.y}; if(j.d) o.d=j.d
 async function sha256hex(str){ const b=await crypto.subtle.digest("SHA-256",enc.encode(str)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
 const sealCode = sig => [...fromB64u(sig).slice(0,6)].map(x=>x.toString(16).padStart(2,"0")).join("").toUpperCase().replace(/(.{4})(?=.)/g,"$1-");
 
+const RETURN_EMAIL="michelle@csrsustain.co.uk";
 const DECL_VALID="I/We confirm that the energy consumption data provided in the tables is an accurate reflection of the building/site energy consumption and is in line with the information provided by the meter’s utility supplier. No changes to the method of energy metering have occurred since the last DEC (Display Energy Certificate) was produced.";
 const DECL_HOURS="The hours declared are those for which the building is fully open to the public and occupancy exceeds 25% of the maximum occupancy for the building.";
 let pack=null, seal="", record=null, pdfBlob=null, pdfName="";
@@ -308,7 +309,7 @@ $("submitSig").addEventListener("click", async ()=>{
 
 function showDone(){
   $("packBody").hidden=true; $("doneBox").hidden=false; window.scrollTo(0,0);
-  $("retEmail").textContent=pack.be;
+  $("retEmail").textContent=RETURN_EMAIL;
   const subj=`Signed DEC forms – ${pack.s.n} – ${pack.id}`, body=emailBody();
   $("mailBtn").href=`mailto:?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
   const file=new File([pdfBlob],pdfName,{type:"application/pdf"});
@@ -317,14 +318,14 @@ function showDone(){
   $("emailBtn").onclick=async()=>{
     $("dlErr").textContent="";
     if(isMobile && canShareFile){
-      help.hidden=false; help.innerHTML=`Choose <strong>Mail</strong> or <strong>Outlook</strong>. The forms and a message are added for you. Enter <strong>${esc(pack.be)}</strong> in the To field and press Send.`;
+      help.hidden=false; help.innerHTML=`Choose <strong>Mail</strong> or <strong>Outlook</strong>. The forms and a message are added for you. Enter <strong>${esc(RETURN_EMAIL)}</strong> in the To field and press Send.`;
       try{ await navigator.share({files:[file],title:subj,text:body}); }catch(e){}
       return;
     }
     try{
       const eml=await buildEml(subj,body,pdfName,pdfBlob);
       saveBlob(new Blob([eml],{type:"message/rfc822"}), `Email - signed DEC forms - ${pack.id}.eml`);
-      help.hidden=false; help.innerHTML=`An email file has downloaded. <strong>Open it</strong> (from your browser's downloads) and it opens in Outlook as a ready-to-send email with the signed forms and a message already added. Enter <strong>${esc(pack.be)}</strong> in the To field and press Send.<br><span style="font-size:13px">If it opens as a received message instead, use Forward, or download the PDF and attach it to a new email.</span>`;
+      help.hidden=false; help.innerHTML=`An email file has downloaded. <strong>Open it</strong> (from your browser's downloads) and it opens in Outlook as a ready-to-send email with the signed forms and a message already added. Enter <strong>${esc(RETURN_EMAIL)}</strong> in the To field and press Send.<br><span style="font-size:13px">If it opens as a received message instead, use Forward, or download the PDF and attach it to a new email.</span>`;
     }catch(e){ $("dlErr").textContent="The email couldn't be prepared. Please use Download PDF only and attach it to an email."; }
   };
   const dl=$("audit"); dl.innerHTML="";

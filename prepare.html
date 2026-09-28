@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-02">
+<meta name="build-version" content="2026-09-28-03">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -134,7 +134,6 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
     <div class="grid">
       <div><label for="cName">Client contact name</label><input type="text" id="cName"></div>
       <div><label for="by">Prepared by</label><input type="text" id="by"></div>
-      <div><label for="be">Email for the signed forms</label><input type="email" id="be" value="michelle@csrsustain.co.uk" placeholder="name@csrsustain.co.uk"></div>
     </div>
     <div class="error" id="mkErr" role="alert"></div>
     <div class="btns">
@@ -233,7 +232,8 @@ $("csrTable").addEventListener("input",recalc);
 $("csrTable").addEventListener("focusout",e=>{ if(e.target.tagName==="INPUT"&&e.target.value.trim()!=="") e.target.value=fmt(num(e.target.value)); });
 
 // ---------- form state ----------
-const FIELDS=["siteName","building","address","postcode","gia","oilType","cName","by","be"];
+const RETURN_EMAIL="michelle@csrsustain.co.uk";
+const FIELDS=["siteName","building","address","postcode","gia","oilType","cName","by"];
 function newRef(){ const d=new Date(); return "DEC-"+d.getFullYear().toString().slice(2)+String(d.getMonth()+1).padStart(2,"0")+"-"+Math.random().toString(36).slice(2,6).toUpperCase(); }
 function collect(){
   return { v:1, id:newRef(),
@@ -242,12 +242,12 @@ function collect(){
     f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0},
     ed: dataMode(),
     m: dataMode()==="client" ? [] : readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4])]),
-    ot: dataMode()==="client" ? "" : $("oilType").value.trim(), cn:$("cName").value.trim(), by:$("by").value.trim(), be:$("be").value.trim(), c:new Date().toISOString() };
+    ot: dataMode()==="client" ? "" : $("oilType").value.trim(), cn:$("cName").value.trim(), by:$("by").value.trim(), be:RETURN_EMAIL, c:new Date().toISOString() };
 }
 function fill(p){
   $("siteName").value=p.s.n; $("building").value=p.s.b; $("address").value=p.s.a; $("postcode").value=p.s.pc; $("gia").value=p.s.g;
   $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v;
-  $("oilType").value=p.ot||""; $("cName").value=p.cn||""; $("by").value=p.by||""; $("be").value=p.be||"michelle@csrsustain.co.uk";
+  $("oilType").value=p.ot||""; $("cName").value=p.cn||""; $("by").value=p.by||"";
   setDataMode(p.ed==="client"?"client":"csr");
   buildTable((p.m||[]).map(r=>[r[0],r[1],r[2],r[3],r[4]]));
 }
@@ -257,7 +257,7 @@ function applyDataMode(){ const c=dataMode()==="client"; $("csrData").hidden=c; 
 document.querySelectorAll('input[name="ed"]').forEach(r=>r.addEventListener("change",applyDataMode));
 $("newPack").addEventListener("click",()=>{
   if(!confirm("Clear the form and start a new pack?")) return;
-  FIELDS.forEach(f=>{ if(f!=="by"&&f!=="be") $(f).value=""; }); $("pStart").value=""; setDataMode("csr"); buildTable([]); $("outPanel").hidden=true; window.scrollTo(0,0);
+  FIELDS.forEach(f=>{ if(f!=="by") $(f).value=""; }); $("pStart").value=""; setDataMode("csr"); buildTable([]); $("outPanel").hidden=true; window.scrollTo(0,0);
 });
 
 // ---------- create link ----------
@@ -270,7 +270,6 @@ $("makeLink").addEventListener("click", async ()=>{
   if(!$("siteName").value.trim()) probs.push("enter the site name");
   if(!$("postcode").value.trim()) probs.push("enter the postcode");
   if(!$("pStart").value) probs.push("choose the consumption period start");
-  if(!/^\S+@\S+\.\S+$/.test($("be").value.trim())) probs.push("enter the email the client should send the signed forms to");
   if(!$("fEnergy").checked&&!$("fHours").checked&&!$("fValid").checked) probs.push("tick at least one form");
   if(probs.length){ err.textContent="Before creating the link, "+probs.join(", ")+"."; return; }
   const pack=collect();
@@ -298,7 +297,7 @@ Please open the secure link below on your computer, tablet or phone. It takes ab
 
 ${current.url}
 
-Once signed, please download the signed forms and email them back to ${p.be}.
+Once signed, please click “Email the signed forms” and send them to ${RETURN_EMAIL}.
 
 Kind regards,
 ${p.by||"CSR Sustain"}
