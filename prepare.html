@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-29-02">
+<meta name="build-version" content="2026-09-29-03">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -115,7 +115,16 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
     </div>
     <div class="note" id="clientDataNote" hidden>The client will be asked to enter the monthly figures from their utility bills for the consumption period set above, including any fuel oil, biomass and renewables generation.</div>
     <div id="csrData">
-    <p class="hint">Monthly totals from the utility bills, not meter readings. Months well above the typical month are highlighted so you can check them before sending.</p>
+    <label>Source of the energy data</label>
+    <p class="hint" style="margin-bottom:8px">Tick all that apply. The client confirms the data and its source when they sign.</p>
+    <div class="checks" id="srcChecks">
+      <label><input type="checkbox" value="b"> Invoices / bills</label>
+      <label><input type="checkbox" value="hh"> Half-hourly (HH) energy data export</label>
+      <label><input type="checkbox" value="p"> Energy management portal export</label>
+      <label><input type="checkbox" value="o" id="srcO"> Other</label>
+    </div>
+    <div id="srcOtherWrap" hidden style="margin-top:10px;max-width:520px"><label for="srcOther">Other source</label><input type="text" id="srcOther" placeholder="e.g. Meter readings supplied by the site"></div>
+    <p class="hint" style="margin-top:16px">Monthly totals, not meter readings. Months well above the typical month are highlighted so you can check them before sending.</p>
     <div class="tablewrap">
       <table id="csrTable">
         <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Biomass (kg)<span class="tip"><button type="button" class="qm" aria-label="About the biomass column">?</button><span class="tipbox" role="tooltip">Only if the building uses a biomass fuel (e.g. wood pellets or chips). Enter the amount used each month in kg. Please also state the biomass fuel type and the calorific value, which you can obtain from your fuel provider.</span></span></th><th>Renewables generation (kWh)<span class="tip"><button type="button" class="qm" aria-label="About the renewables column">?</button><span class="tipbox" role="tooltip">Only if the site has renewables such as solar PV or wind. Enter the electricity <strong>generated</strong> each month in kWh, not consumed. Leave blank if there are none.</span></span></th></tr></thead>
@@ -255,6 +264,7 @@ function collect(){
     f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0, n:$("fAsset").checked?1:0},
     ed: dataMode(),
     m: dataMode()==="client" ? [] : readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4]),num(r[5])]),
+    src: dataMode()==="client" ? [] : srcList(), so: dataMode()==="client"||!$("srcO").checked ? "" : $("srcOther").value.trim(),
     bt: dataMode()==="client" ? "" : $("bType").value.trim(), bcv: dataMode()==="client" ? "" : $("bCv").value.trim(),
     ot: dataMode()==="client" ? "" : $("oilType").value.trim(), cn:$("cName").value.trim(), by:$("by").value.trim(), be:RETURN_EMAIL, c:new Date().toISOString() };
 }
@@ -262,16 +272,20 @@ function fill(p){
   $("siteName").value=p.s.n; $("building").value=p.s.b; $("address").value=p.s.a; $("postcode").value=p.s.pc; $("gia").value=p.s.g;
   $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v; $("fAsset").checked=!!p.f.n;
   $("oilType").value=p.ot||""; $("bType").value=p.bt||""; $("bCv").value=p.bcv||""; if(p.as) $("assessor").value=p.as; $("cName").value=p.cn||""; $("by").value=p.by||"";
+  setSrc(p.src||[], p.so||"");
   setDataMode(p.ed==="client"?"client":"csr");
   buildTable((p.m||[]).map(r=>r.length===5?[r[0],r[1],r[2],r[3],0,r[4]]:r));
 }
+function srcList(){ return [...document.querySelectorAll("#srcChecks input:checked")].map(i=>i.value); }
+function setSrc(list,other){ document.querySelectorAll("#srcChecks input").forEach(i=>i.checked=list.includes(i.value)); $("srcOther").value=other; $("srcOtherWrap").hidden=!$("srcO").checked; }
+$("srcO").addEventListener("change",()=>{ $("srcOtherWrap").hidden=!$("srcO").checked; if($("srcO").checked) $("srcOther").focus(); });
 function dataMode(){ const r=document.querySelector('input[name="ed"]:checked'); return r?r.value:"csr"; }
 function setDataMode(m){ document.querySelectorAll('input[name="ed"]').forEach(r=>r.checked=(r.value===m)); applyDataMode(); }
 function applyDataMode(){ const c=dataMode()==="client"; $("csrData").hidden=c; $("clientDataNote").hidden=!c; }
 document.querySelectorAll('input[name="ed"]').forEach(r=>r.addEventListener("change",applyDataMode));
 $("newPack").addEventListener("click",()=>{
   if(!confirm("Clear the form and start a new pack?")) return;
-  FIELDS.forEach(f=>{ if(f!=="by") $(f).value=""; }); $("pStart").value=""; setDataMode("csr"); buildTable([]); $("outPanel").hidden=true; window.scrollTo(0,0);
+  FIELDS.forEach(f=>{ if(f!=="by") $(f).value=""; }); $("pStart").value=""; setDataMode("csr"); setSrc([],""); buildTable([]); $("outPanel").hidden=true; window.scrollTo(0,0);
 });
 
 // ---------- create link ----------
@@ -282,6 +296,10 @@ $("makeLink").addEventListener("click", async ()=>{
   if(localCopy){ err.textContent="Links can only be created from the website: https://csr-sustain-ltd.github.io/dec-evidence-pack/prepare.html"; return; }
   if(!privKey) probs.push("set up the seal key (Seal key settings, at the bottom of the page)");
   if(!$("assessor").value) probs.push("select the DEC assessor");
+  if(dataMode()==="csr"&&($("fEnergy").checked||$("fValid").checked)){
+    if(!srcList().length) probs.push("tick the source of the energy data");
+    else if($("srcO").checked&&!$("srcOther").value.trim()) probs.push("describe the other energy data source");
+  }
   if(!$("siteName").value.trim()) probs.push("enter the site name");
   if(!$("postcode").value.trim()) probs.push("enter the postcode");
   if(!$("pStart").value&&($("fEnergy").checked||$("fValid").checked)) probs.push("choose the consumption period start");
