@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-01">
+<meta name="build-version" content="2026-09-28-02">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -134,7 +134,7 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
     <div class="grid">
       <div><label for="cName">Client contact name</label><input type="text" id="cName"></div>
       <div><label for="by">Prepared by</label><input type="text" id="by"></div>
-      <div><label for="be">Email for the signed forms</label><input type="email" id="be" placeholder="name@csrsustain.co.uk"></div>
+      <div><label for="be">Email for the signed forms</label><input type="email" id="be" value="michelle@csrsustain.co.uk" placeholder="name@csrsustain.co.uk"></div>
     </div>
     <div class="error" id="mkErr" role="alert"></div>
     <div class="btns">
@@ -247,7 +247,7 @@ function collect(){
 function fill(p){
   $("siteName").value=p.s.n; $("building").value=p.s.b; $("address").value=p.s.a; $("postcode").value=p.s.pc; $("gia").value=p.s.g;
   $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v;
-  $("oilType").value=p.ot||""; $("cName").value=p.cn||""; $("by").value=p.by||""; $("be").value=p.be||"";
+  $("oilType").value=p.ot||""; $("cName").value=p.cn||""; $("by").value=p.by||""; $("be").value=p.be||"michelle@csrsustain.co.uk";
   setDataMode(p.ed==="client"?"client":"csr");
   buildTable((p.m||[]).map(r=>[r[0],r[1],r[2],r[3],r[4]]));
 }
