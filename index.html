@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-06">
+<meta name="build-version" content="2026-09-28-07">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – CSR Sustain</title>
@@ -70,6 +70,9 @@ tr.flag td{background:var(--warn-soft)}
 .tipbox{display:none;position:absolute;right:-6px;top:calc(100% + 8px);width:250px;background:var(--ink);color:#FFFFFF;font-weight:400;font-size:13px;line-height:1.45;text-align:left;padding:10px 12px;border-radius:8px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .tip:hover .tipbox,.tip:focus-within .tipbox{display:block}
 .steps-list{margin:0 0 4px;padding-left:20px;font-size:15px}
+.radios{display:flex;flex-direction:column;gap:10px;margin:4px 0 14px}
+.radios label{display:flex;gap:10px;align-items:center;font-weight:500}
+input[type=radio]{width:22px;height:22px;margin:0;accent-color:var(--brand);flex:none}
 .applist{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
 @media (max-width:520px){.applist{grid-template-columns:1fr}}
 .appbtn{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--rule);border-radius:8px;background:var(--surface);color:var(--ink);text-decoration:none;min-height:46px}
@@ -144,6 +147,21 @@ tr.flag td{background:var(--warn-soft)}
       </div>
     </section>
 
+    <section class="panel step" id="sAsset" hidden>
+      <div class="num">3</div>
+      <div>
+        <h2>Changes since the last DEC</h2>
+        <p class="hint">For your DEC renewal, please confirm whether the building has undergone any material change since the last Display Energy Certificate assessment. Material change includes:</p>
+        <ul class="steps-list" style="margin-bottom:16px;color:var(--ink-2);font-size:14px"><li>The addition of a building or buildings</li><li>The addition of an extension</li><li>The refurbishment of any part of the building</li><li>The upgrade or replacement of any building services plant (e.g. boiler)</li><li>The switching of a fuel source (e.g. from oil to gas)</li><li>The installation or replacement of energy meters</li><li>The addition of any renewable energy sources</li></ul>
+        <div class="radios" role="radiogroup" aria-label="Changes since the last DEC">
+          <label><input type="radio" name="asset" value="none"> No material changes since the last DEC</label>
+          <label><input type="radio" name="asset" value="changed"> There have been changes</label>
+        </div>
+        <div id="assetDetailsWrap" hidden><label for="assetDetails">Please describe the changes and roughly when they happened</label>
+          <textarea id="assetDetails" placeholder="e.g. New gas boiler installed in August 2025; solar PV added to the hall roof"></textarea></div>
+      </div>
+    </section>
+
     <section class="panel step" id="sSign">
       <div class="num">3</div>
       <div>
@@ -202,6 +220,7 @@ async function sha256hex(str){ const b=await crypto.subtle.digest("SHA-256",enc.
 const sealCode = sig => [...fromB64u(sig).slice(0,6)].map(x=>x.toString(16).padStart(2,"0")).join("").toUpperCase().replace(/(.{4})(?=.)/g,"$1-");
 
 const RETURN_EMAIL="michelle@csrsustain.co.uk";
+const ASSET_CHANGES=["The addition of a building or buildings", "The addition of an extension", "The refurbishment of any part of the building", "The upgrade or replacement of any building services plant (e.g. boiler)", "The switching of a fuel source (e.g. from oil to gas)", "The installation or replacement of energy meters", "The addition of any renewable energy sources"];
 const DECL_VALID="I/We confirm that the energy consumption data provided in the tables is an accurate reflection of the building/site energy consumption and is in line with the information provided by the meter’s utility supplier. No changes to the method of energy metering have occurred since the last DEC (Display Energy Certificate) was produced.";
 const DECL_HOURS="The hours declared are those for which the building is fully open to the public and occupancy exceeds 25% of the maximum occupancy for the building.";
 let pack=null, seal="", record=null, pdfBlob=null, pdfName="";
@@ -227,7 +246,7 @@ function render(){
   document.title=`${pack.s.n} – DEC evidence pack`;
   $("packBody").hidden=false;
   const dl=$("cSite");
-  [["Site",pack.s.n],["Building",pack.s.b||"—"],["Address",[pack.s.a,pack.s.pc].filter(Boolean).join(", ")],["Consumption period",ukDate(pack.ps)+" to "+ukDate(pack.pe)],["Floor area (GIA)",pack.s.g?pack.s.g+" m²":"—"],["Pack reference",pack.id]]
+  [["Site",pack.s.n],["Building",pack.s.b||"—"],["Address",[pack.s.a,pack.s.pc].filter(Boolean).join(", ")],["Consumption period",pack.ps?ukDate(pack.ps)+" to "+ukDate(pack.pe):"—"],["Floor area (GIA)",pack.s.g?pack.s.g+" m²":"—"],["Pack reference",pack.id]]
     .forEach(([k,v])=>{const w=document.createElement("div");const dt=document.createElement("dt");dt.textContent=k;const dd=document.createElement("dd");dd.textContent=v;w.append(dt,dd);dl.append(w);});
   if(clientEnters()) buildEntryTable(); else {
     const tb=$("cTable").tBodies[0]; const t=[0,0,0,0];
@@ -237,7 +256,10 @@ function render(){
   }
   $("sEnergy").hidden=!(pack.f.e||pack.f.v); $("sHours").hidden=!pack.f.h;
   [...document.querySelectorAll("section.step")].filter(s=>!s.hidden).forEach((s,i)=>s.querySelector(".num").textContent=i+1);
-  $("declText").textContent=[pack.f.v?DECL_VALID:"", pack.f.h?"I also confirm the opening hours declared above for the previous 12 months.":"", pack.f.e&&!pack.f.v?"I confirm the energy data above is accurate.":""].filter(Boolean).join(" ");
+  $("sAsset").hidden=!pack.f.n;
+  [...document.querySelectorAll("section.step")].filter(s=>!s.hidden).forEach((s,i)=>s.querySelector(".num").textContent=i+1);
+  document.querySelectorAll('input[name="asset"]').forEach(r=>r.addEventListener("change",()=>{ $("assetDetailsWrap").hidden=assetChoice()!=="changed"; updateDecl(); }));
+  updateDecl();
   if(clientEnters()&&(pack.f.e||pack.f.v)){ $("eTitle").textContent="Enter the energy data"; $("eHint").textContent=`Enter the monthly totals from your utility bills for ${ukDate(pack.ps)} to ${ukDate(pack.pe)} – the amount used each month, not meter readings. Leave a column blank if the site doesn't use that fuel.`; $("oilWrap").hidden=false; $("qLabel").textContent="Notes about the data (optional)"; $("cQuery").placeholder="e.g. March gas bill was estimated"; }
   if(pack.f.h) addHoursRow("Monday–Friday","","08:00","16:00");
   if(pack.cn) $("sName").value=pack.cn;
@@ -297,6 +319,8 @@ $("submitSig").addEventListener("click", async ()=>{
   let entered=null;
   if(clientEnters()&&(pack.f.e||pack.f.v)){ entered=readEntryTable(); if(!entered.some(r=>r[1]||r[2]||r[3]||r[4])) probs.push("enter the monthly energy data from your utility bills"); }
   if(pack.f.h&&!hours.some(h=>h.days&&h.weeks&&h.open&&h.close)) probs.push("complete at least one opening-hours pattern (days, weeks, open and close)");
+  if(pack.f.n&&!assetChoice()) probs.push("confirm whether the building has changed since the last DEC");
+  if(pack.f.n&&assetChoice()==="changed"&&!$("assetDetails").value.trim()) probs.push("describe the changes to the building");
   if(!$("sName").value.trim()) probs.push("enter your full name");
   if(!$("sPos").value.trim()) probs.push("enter your position");
   if(!/^\S+@\S+\.\S+$/.test($("sEmail").value.trim())) probs.push("enter a valid email address");
@@ -309,7 +333,7 @@ $("submitSig").addEventListener("click", async ()=>{
   const sig=await signatureImage();
   const r={ref:pack.id, seal, hours:hours.filter(h=>h.days), query:$("cQuery").value.trim(),
     signer:{name:$("sName").value.trim(),position:$("sPos").value.trim(),company:$("sCompany").value.trim(),email:$("sEmail").value.trim()},
-    m: entered || pack.m, ot: entered ? $("cOil").value.trim() : (pack.ot||""), enteredBy: entered ? "client" : "csr",
+    m: entered || pack.m, ot: entered ? $("cOil").value.trim() : (pack.ot||""), enteredBy: entered ? "client" : "csr", asset: pack.f.n ? {changed: assetChoice()==="changed", details: $("assetDetails").value.trim()} : null,
     method:mode==="draw"?"Drawn":"Typed", signedAt:new Date().toISOString(), device:navigator.userAgent};
   r.hash=await sha256hex(JSON.stringify({pack,r})+sig); r.sig=sig; record=r;
   try{ pdfBlob=buildPdf(); }catch(e){ $("submitSig").disabled=false; err.textContent="The signed PDF couldn't be created. Please reload the page and try again."; return; }
@@ -358,6 +382,12 @@ $("dlBtn").addEventListener("click",()=>saveBlob(pdfBlob,pdfName));
 
 // ---------- client-entered data ----------
 const clientEnters=()=>pack.ed==="client";
+const assetChoice=()=>{ const r=document.querySelector('input[name="asset"]:checked'); return r?r.value:""; };
+function updateDecl(){
+  const parts=[pack.f.v?DECL_VALID:"", pack.f.h?"I also confirm the opening hours declared above for the previous 12 months.":"", pack.f.e&&!pack.f.v?"I confirm the energy data above is accurate.":""];
+  if(pack.f.n) parts.push(assetChoice()==="changed"?"I confirm the changes to the building described above since the last Display Energy Certificate assessment.":"I confirm that the building has undergone no material changes since the last Display Energy Certificate assessment.");
+  $("declText").textContent=parts.filter(Boolean).join(" ");
+}
 function monthLabels(startISO){ const d=new Date(startISO+"T00:00:00Z"); if(isNaN(d)) return []; return Array.from({length:12},(_,i)=>{const t=d.getUTCMonth()+i; return MONTHS[t%12]+"-"+String(d.getUTCFullYear()+Math.floor(t/12)).slice(2);}); }
 function buildEntryTable(){
   const tb=$("cTable").tBodies[0]; tb.innerHTML=""; const names=["electricity","gas","fuel oil","renewables generation"];
@@ -433,16 +463,29 @@ function buildPdf(){
     doc.text(`Gas: ${ukDate(p.ps)} to ${ukDate(p.pe)}          Electricity: ${ukDate(p.ps)} to ${ukDate(p.pe)}`,M,y); y+=8;
     y=wrap(DECL_VALID,y)+8; sigBlock(y);
   }
+  if(p.f.n){
+    const ch=r.asset&&r.asset.changed;
+    let y=page(ch?"DEC Renewal – Declaration of Asset Change":"DEC Renewal – Confirmation of No Asset Change");
+    y=wrap(ch?"The signer has declared that the building has undergone material change since the last Display Energy Certificate assessment, as described below.":"I hereby confirm that the building has undergone no material changes since the last Display Energy Certificate assessment.",y)+3;
+    doc.setFont("helvetica","bold"); doc.text("Material change would include:",M,y); doc.setFont("helvetica","normal"); y+=6;
+    ASSET_CHANGES.forEach(c=>{ doc.text("•",M+2,y); const l=doc.splitTextToSize(c,W-2*M-8); doc.text(l,M+7,y); y+=l.length*5; }); y+=4;
+    if(ch){ doc.setFont("helvetica","bold"); doc.setTextColor(...teal); doc.text("Changes declared by the signer:",M,y); doc.setFont("helvetica","normal"); doc.setTextColor(...ink); y=wrap(r.asset.details,y+5)+4; }
+    sigBlock(y+4);
+  }
   let y=page("Signing Certificate");
-  const rows=[["Pack reference",p.id],["Prepared by",p.by||"CSR Sustain"],["Pack issued",new Date(p.c).toUTCString()],
-    ["Signed by",r.signer.name],["Position",r.signer.position]].concat(r.signer.company?[["Company",r.signer.company]]:[],[["Email",r.signer.email],["Signed at",new Date(r.signedAt).toUTCString()],
-    ["Energy data entered by",r.enteredBy==="client"?"Signer":"CSR Sustain"],["Consent","Signer confirmed accuracy and agreed to sign electronically"]]);
+  const rows=[["Pack reference",p.id],["Prepared by",p.by||"CSR Sustain"],["Pack issued",new Date(p.c).toUTCString()],["Signed by",r.signer.name],["Position",r.signer.position]];
+  if(r.signer.company) rows.push(["Company",r.signer.company]);
+  rows.push(["Email",r.signer.email],["Signed at",new Date(r.signedAt).toUTCString()]);
+  if(p.f.e||p.f.v) rows.push(["Energy data entered by",r.enteredBy==="client"?"Signer":"CSR Sustain"]);
+  if(p.f.n) rows.push(["Asset change since last DEC",r.asset&&r.asset.changed?"Changes declared (see declaration page)":"No material change confirmed"]);
+  rows.push(["Consent","Signer confirmed accuracy and agreed to sign electronically"]);
   if(at){ tbl({startY:y,body:rows,theme:"plain",styles:{fontSize:9,cellPadding:2,textColor:ink},columnStyles:{0:{fontStyle:"bold",cellWidth:55}}}); y=doc.lastAutoTable.finalY+8; }
   doc.setFontSize(9.5);
   const who=`${r.signer.name} (${r.signer.position}${r.signer.company?", "+r.signer.company:""})`, forSite=`the purposes of producing the Display Energy Certificate for ${p.s.n}`;
-  wrap(r.enteredBy==="client"
+  let yEnd=wrap(!(p.f.e||p.f.v) ? `By signing this pack, ${who} confirmed that the information in this pack${p.f.h?", including the opening hours they declared,":""} is accurate and complete for ${forSite}.` : r.enteredBy==="client"
     ? `By signing this pack, ${who} confirmed that the energy consumption data they entered reflects the site's utility bills, that they have reviewed all the details provided by CSR Sustain, and that the information in this pack${p.f.h?", including the opening hours they declared,":""} is accurate and complete for ${forSite}.`
     : `By signing this pack, ${who} confirmed that they have reviewed all the details provided by CSR Sustain, including the energy consumption data, and agree that these details${p.f.h?", together with the opening hours they declared,":""} are accurate and complete for ${forSite}.`, y);
+  if(p.f.n) wrap(r.asset&&r.asset.changed?`${r.signer.name} also declared the changes to the building described in this pack since the last Display Energy Certificate assessment.`:`${r.signer.name} also confirmed that the building has undergone no material changes since the last Display Energy Certificate assessment.`, yEnd+3);
   const n=doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...grey); doc.text(`DEC evidence pack  |  Ref ${p.id}`,M,BOTTOM+6); doc.text(`Page ${i} of ${n}`,W-M,BOTTOM+6,{align:"right"}); }
   return doc.output("blob");
 }

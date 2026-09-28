@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-03">
+<meta name="build-version" content="2026-09-28-04">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -101,6 +101,7 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
         <label><input type="checkbox" id="fEnergy" checked> Energy data</label>
         <label><input type="checkbox" id="fHours" checked> Confirmation of opening hours</label>
         <label><input type="checkbox" id="fValid" checked> Energy data validation</label>
+        <label><input type="checkbox" id="fAsset"> Confirmation of no asset change (DEC renewal)</label>
       </div>
     </div>
   </section>
@@ -233,20 +234,28 @@ $("csrTable").addEventListener("focusout",e=>{ if(e.target.tagName==="INPUT"&&e.
 
 // ---------- form state ----------
 const RETURN_EMAIL="michelle@csrsustain.co.uk";
+function askLine(p){
+  const parts=[];
+  if(p.f.e||p.f.v) parts.push(`${p.ed==="client"?"provide":"confirm"} the energy data for ${ukDate(p.ps)} to ${ukDate(p.pe)}`);
+  if(p.f.h) parts.push("confirm your opening hours for the previous 12 months");
+  if(p.f.n) parts.push("confirm whether the building has changed since the last DEC assessment");
+  const list=parts.length>1?parts.slice(0,-1).join(", ")+" and "+parts[parts.length-1]:(parts[0]||"sign the enclosed forms");
+  return "we need you to "+list+".";
+}
 const FIELDS=["siteName","building","address","postcode","gia","oilType","cName","by"];
 function newRef(){ const d=new Date(); return "DEC-"+d.getFullYear().toString().slice(2)+String(d.getMonth()+1).padStart(2,"0")+"-"+Math.random().toString(36).slice(2,6).toUpperCase(); }
 function collect(){
   return { v:1, id:newRef(),
     s:{n:$("siteName").value.trim(), b:$("building").value.trim(), a:$("address").value.trim(), pc:$("postcode").value.trim().toUpperCase(), g:$("gia").value.trim()},
     ps:$("pStart").value, pe:$("pEnd").value,
-    f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0},
+    f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0, n:$("fAsset").checked?1:0},
     ed: dataMode(),
     m: dataMode()==="client" ? [] : readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4])]),
     ot: dataMode()==="client" ? "" : $("oilType").value.trim(), cn:$("cName").value.trim(), by:$("by").value.trim(), be:RETURN_EMAIL, c:new Date().toISOString() };
 }
 function fill(p){
   $("siteName").value=p.s.n; $("building").value=p.s.b; $("address").value=p.s.a; $("postcode").value=p.s.pc; $("gia").value=p.s.g;
-  $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v;
+  $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v; $("fAsset").checked=!!p.f.n;
   $("oilType").value=p.ot||""; $("cName").value=p.cn||""; $("by").value=p.by||"";
   setDataMode(p.ed==="client"?"client":"csr");
   buildTable((p.m||[]).map(r=>[r[0],r[1],r[2],r[3],r[4]]));
@@ -269,8 +278,8 @@ $("makeLink").addEventListener("click", async ()=>{
   if(!privKey) probs.push("set up the seal key (Seal key settings, at the bottom of the page)");
   if(!$("siteName").value.trim()) probs.push("enter the site name");
   if(!$("postcode").value.trim()) probs.push("enter the postcode");
-  if(!$("pStart").value) probs.push("choose the consumption period start");
-  if(!$("fEnergy").checked&&!$("fHours").checked&&!$("fValid").checked) probs.push("tick at least one form");
+  if(!$("pStart").value&&($("fEnergy").checked||$("fValid").checked)) probs.push("choose the consumption period start");
+  if(!$("fEnergy").checked&&!$("fHours").checked&&!$("fValid").checked&&!$("fAsset").checked) probs.push("tick at least one form");
   if(probs.length){ err.textContent="Before creating the link, "+probs.join(", ")+"."; return; }
   const pack=collect();
   const payload=b64u(enc.encode(JSON.stringify(pack)));
@@ -291,7 +300,7 @@ $("copyEmail").addEventListener("click",()=>{
   const p=current.pack;
   const t=`Dear ${p.cn||"Sir/Madam"},
 
-As part of your Display Energy Certificate (DEC) for ${p.s.n}${p.s.b?", "+p.s.b:""}, we need you to ${p.ed==="client"?"provide":"confirm"} the energy data${p.f.h?" and opening hours":""} for ${ukDate(p.ps)} to ${ukDate(p.pe)}.
+As part of your Display Energy Certificate (DEC) for ${p.s.n}${p.s.b?", "+p.s.b:""}, ${askLine(p)}
 
 Please open the secure link below on your computer, tablet or phone. It takes about five minutes and there is nothing to print:
 
