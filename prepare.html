@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-04">
+<meta name="build-version" content="2026-09-29-02">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -32,7 +32,7 @@ section.panel{background:var(--surface);border:1px solid var(--rule);border-radi
 .hint{color:var(--ink-2);font-size:14px;margin:0 0 16px;max-width:68ch}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 label{display:block;font-size:14px;font-weight:600;margin-bottom:5px}
-input[type=text],input[type=email],input[type=date],input[type=time],input[type=number],textarea{
+input[type=text],input[type=email],input[type=date],input[type=time],input[type=number],select,textarea{
   width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--rule);border-radius:7px;padding:10px 11px;min-height:44px}
 textarea{min-height:84px;resize:vertical}
 input[readonly]{background:var(--paper)}
@@ -113,19 +113,21 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
       <label><input type="radio" name="ed" value="csr" checked> CSR Sustain (enter it below)</label>
       <label><input type="radio" name="ed" value="client"> The client (they enter it when they open the link)</label>
     </div>
-    <div class="note" id="clientDataNote" hidden>The client will be asked to enter the monthly figures from their utility bills for the consumption period set above, including any fuel oil and renewables generation.</div>
+    <div class="note" id="clientDataNote" hidden>The client will be asked to enter the monthly figures from their utility bills for the consumption period set above, including any fuel oil, biomass and renewables generation.</div>
     <div id="csrData">
     <p class="hint">Monthly totals from the utility bills, not meter readings. Months well above the typical month are highlighted so you can check them before sending.</p>
     <div class="tablewrap">
       <table id="csrTable">
-        <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Renewables generation (kWh)<span class="tip"><button type="button" class="qm" aria-label="About the renewables column">?</button><span class="tipbox" role="tooltip">Only if the site has renewables such as solar PV or wind. Enter the electricity <strong>generated</strong> each month in kWh, not consumed. Leave blank if there are none.</span></span></th></tr></thead>
+        <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Biomass (kg)<span class="tip"><button type="button" class="qm" aria-label="About the biomass column">?</button><span class="tipbox" role="tooltip">Only if the building uses a biomass fuel (e.g. wood pellets or chips). Enter the amount used each month in kg. Please also state the biomass fuel type and the calorific value, which you can obtain from your fuel provider.</span></span></th><th>Renewables generation (kWh)<span class="tip"><button type="button" class="qm" aria-label="About the renewables column">?</button><span class="tipbox" role="tooltip">Only if the site has renewables such as solar PV or wind. Enter the electricity <strong>generated</strong> each month in kWh, not consumed. Leave blank if there are none.</span></span></th></tr></thead>
         <tbody></tbody>
-        <tfoot><tr><td>Total</td><td id="tE"></td><td id="tG"></td><td id="tO"></td><td id="tR"></td></tr></tfoot>
+        <tfoot><tr><td>Total</td><td id="tE"></td><td id="tG"></td><td id="tO"></td><td id="tB"></td><td id="tR"></td></tr></tfoot>
       </table>
     </div>
     <div class="flagnote" id="flagNote"></div>
     <div class="grid" style="margin-top:14px">
       <div><label for="oilType">Fuel oil type (if any)</label><input type="text" id="oilType" placeholder="e.g. Gas oil / kerosene"></div>
+      <div><label for="bType">Biomass fuel type (if any)</label><input type="text" id="bType" placeholder="e.g. Wood pellets"></div>
+      <div><label for="bCv">Biomass calorific value</label><input type="text" id="bCv" placeholder="e.g. 4.8 kWh/kg (from the fuel provider)"></div>
     </div>
     </div>
   </section>
@@ -135,7 +137,9 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
     <div class="grid">
       <div><label for="cName">Client contact name</label><input type="text" id="cName"></div>
       <div><label for="by">Prepared by</label><input type="text" id="by"></div>
+      <div><label for="assessor">DEC assessor</label><select id="assessor"><option value="">Select the assessor…</option><option value="ck">Craig Kefford</option><option value="gc">Gary Cleary</option></select></div>
     </div>
+    <p class="hint" style="margin:10px 0 0">The selected assessor's signature is added automatically to every signed form.</p>
     <div class="error" id="mkErr" role="alert"></div>
     <div class="btns">
       <button class="btn primary" type="button" id="makeLink">Create client link</button>
@@ -145,7 +149,7 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
 
   <section class="panel" id="outPanel" hidden>
     <h2>Link ready</h2>
-    <p class="hint">Copy the link into your own email to the client. Keep a note of the seal code: it is printed on the signed forms they send back.</p>
+    <p class="hint">Copy the link into your own email to the client. Keep a note of the pack reference: it is printed on the signed forms they send back.</p>
     <label for="outLink">Client link</label>
     <textarea id="outLink" readonly rows="3" style="font-size:13px"></textarea>
     <p style="margin:10px 0 0">Pack reference <strong id="outRef"></strong> · Seal code <strong id="outSeal"></strong></p>
@@ -191,7 +195,7 @@ function saveFile_unused(name, text){ const a=document.createElement("a"); a.hre
 // ---------- key handling (setup lives on keys.html) ----------
 async function checkKey(){
   const warn=t=>{ $("keyBannerText").textContent=t; $("keyBanner").hidden=false; };
-  if (location.protocol==="file:"){ localCopy=true; $("keyBanner").className="note bad"; $("keyBanner").querySelector("a").href="https://csrsustain.github.io/dec-evidence-pack/prepare.html"; $("keyBanner").querySelector("a").textContent="Open the website version";
+  if (location.protocol==="file:"){ localCopy=true; $("keyBanner").className="note bad"; $("keyBanner").querySelector("a").href="https://csr-sustain-ltd.github.io/dec-evidence-pack/prepare.html"; $("keyBanner").querySelector("a").textContent="Open the website version";
     return warn("This is a copy of the page saved on your computer, so links made here won't open for clients."); }
   if (!window.crypto || !crypto.subtle) return warn("This browser can't create seals here. Open this page from its https:// GitHub Pages address.");
   const saved=store.get(KEY_STORE);
@@ -207,20 +211,20 @@ function monthLabels(startISO){
   return Array.from({length:12},(_,i)=>{const t=d.getUTCMonth()+i; return MONTHS[t%12]+"-"+String(d.getUTCFullYear()+Math.floor(t/12)).slice(2);});
 }
 function endDate(startISO){ const d=new Date(startISO+"T00:00:00Z"); if(isNaN(d)) return ""; d.setUTCFullYear(d.getUTCFullYear()+1); d.setUTCDate(d.getUTCDate()-1); return d.toISOString().slice(0,10); }
-function readRows(){ return [...$("csrTable").tBodies[0].rows].map(tr=>{const i=tr.querySelectorAll("input"); return [tr.cells[0].textContent,i[0].value,i[1].value,i[2].value,i[3].value];}); }
+function readRows(){ return [...$("csrTable").tBodies[0].rows].map(tr=>{const i=tr.querySelectorAll("input"); return [tr.cells[0].textContent,i[0].value,i[1].value,i[2].value,i[3].value,i[4].value];}); }
 function buildTable(values){
   const labels=monthLabels($("pStart").value); $("pEnd").value=endDate($("pStart").value);
   const old = values || readRows(); const tb=$("csrTable").tBodies[0]; tb.innerHTML="";
-  const names=["electricity","gas","fuel oil","renewables"];
+  const names=["electricity","gas","fuel oil","biomass","renewables generation"];
   labels.forEach((m,i)=>{ const tr=document.createElement("tr"); const td0=document.createElement("td"); td0.textContent=m; tr.appendChild(td0);
-    for(let k=1;k<=4;k++){ const td=document.createElement("td"); const inp=document.createElement("input"); inp.type="text"; inp.inputMode="decimal"; inp.setAttribute("aria-label",m+" "+names[k-1]);
+    for(let k=1;k<=5;k++){ const td=document.createElement("td"); const inp=document.createElement("input"); inp.type="text"; inp.inputMode="decimal"; inp.setAttribute("aria-label",m+" "+names[k-1]);
       const v=old[i]?old[i][k]:""; inp.value = (v===""||v==null)?"":fmt(num(v)); td.appendChild(inp); tr.appendChild(td); }
     tb.appendChild(tr); });
   recalc();
 }
 function recalc(){
-  const rows=readRows(); const t=[0,0,0,0]; rows.forEach(r=>{for(let k=0;k<4;k++) t[k]+=num(r[k+1]);});
-  $("tE").textContent=fmt(t[0]); $("tG").textContent=fmt(t[1]); $("tO").textContent=fmt(t[2]); $("tR").textContent=fmt(t[3]);
+  const rows=readRows(); const t=[0,0,0,0,0]; rows.forEach(r=>{for(let k=0;k<5;k++) t[k]+=num(r[k+1]);});
+  $("tE").textContent=fmt(t[0]); $("tG").textContent=fmt(t[1]); $("tO").textContent=fmt(t[2]); $("tB").textContent=fmt(t[3]); $("tR").textContent=fmt(t[4]);
   const vals=rows.map(r=>num(r[1])).filter(v=>v>0).sort((a,b)=>a-b); const med=vals.length?vals[Math.floor(vals.length/2)]:0; const flagged=[];
   [...$("csrTable").tBodies[0].rows].forEach((tr,i)=>{const f=med&&num(rows[i][1])>med*1.5; tr.classList.toggle("flag",!!f); if(f) flagged.push(rows[i][0]);});
   const notes=[];
@@ -242,23 +246,24 @@ function askLine(p){
   const list=parts.length>1?parts.slice(0,-1).join(", ")+" and "+parts[parts.length-1]:(parts[0]||"sign the enclosed forms");
   return "we need you to "+list+".";
 }
-const FIELDS=["siteName","building","address","postcode","gia","oilType","cName","by"];
+const FIELDS=["siteName","building","address","postcode","gia","oilType","bType","bCv","cName","by"];
 function newRef(){ const d=new Date(); return "DEC-"+d.getFullYear().toString().slice(2)+String(d.getMonth()+1).padStart(2,"0")+"-"+Math.random().toString(36).slice(2,6).toUpperCase(); }
 function collect(){
-  return { v:1, id:newRef(),
+  return { v:2, id:newRef(), as:$("assessor").value,
     s:{n:$("siteName").value.trim(), b:$("building").value.trim(), a:$("address").value.trim(), pc:$("postcode").value.trim().toUpperCase(), g:$("gia").value.trim()},
     ps:$("pStart").value, pe:$("pEnd").value,
     f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0, n:$("fAsset").checked?1:0},
     ed: dataMode(),
-    m: dataMode()==="client" ? [] : readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4])]),
+    m: dataMode()==="client" ? [] : readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4]),num(r[5])]),
+    bt: dataMode()==="client" ? "" : $("bType").value.trim(), bcv: dataMode()==="client" ? "" : $("bCv").value.trim(),
     ot: dataMode()==="client" ? "" : $("oilType").value.trim(), cn:$("cName").value.trim(), by:$("by").value.trim(), be:RETURN_EMAIL, c:new Date().toISOString() };
 }
 function fill(p){
   $("siteName").value=p.s.n; $("building").value=p.s.b; $("address").value=p.s.a; $("postcode").value=p.s.pc; $("gia").value=p.s.g;
   $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v; $("fAsset").checked=!!p.f.n;
-  $("oilType").value=p.ot||""; $("cName").value=p.cn||""; $("by").value=p.by||"";
+  $("oilType").value=p.ot||""; $("bType").value=p.bt||""; $("bCv").value=p.bcv||""; if(p.as) $("assessor").value=p.as; $("cName").value=p.cn||""; $("by").value=p.by||"";
   setDataMode(p.ed==="client"?"client":"csr");
-  buildTable((p.m||[]).map(r=>[r[0],r[1],r[2],r[3],r[4]]));
+  buildTable((p.m||[]).map(r=>r.length===5?[r[0],r[1],r[2],r[3],0,r[4]]:r));
 }
 function dataMode(){ const r=document.querySelector('input[name="ed"]:checked'); return r?r.value:"csr"; }
 function setDataMode(m){ document.querySelectorAll('input[name="ed"]').forEach(r=>r.checked=(r.value===m)); applyDataMode(); }
@@ -274,8 +279,9 @@ let current=null, localCopy=false;
 $("makeLink").addEventListener("click", async ()=>{
   const err=$("mkErr"); err.textContent="";
   const probs=[];
-  if(localCopy){ err.textContent="Links can only be created from the website: https://csrsustain.github.io/dec-evidence-pack/prepare.html"; return; }
+  if(localCopy){ err.textContent="Links can only be created from the website: https://csr-sustain-ltd.github.io/dec-evidence-pack/prepare.html"; return; }
   if(!privKey) probs.push("set up the seal key (Seal key settings, at the bottom of the page)");
+  if(!$("assessor").value) probs.push("select the DEC assessor");
   if(!$("siteName").value.trim()) probs.push("enter the site name");
   if(!$("postcode").value.trim()) probs.push("enter the postcode");
   if(!$("pStart").value&&($("fEnergy").checked||$("fValid").checked)) probs.push("choose the consumption period start");
