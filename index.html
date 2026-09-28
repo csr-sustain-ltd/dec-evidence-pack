@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-02">
+<meta name="build-version" content="2026-09-28-03">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – CSR Sustain</title>
@@ -310,7 +310,7 @@ function showDone(){
   $("packBody").hidden=true; $("doneBox").hidden=false; window.scrollTo(0,0);
   $("retEmail").textContent=pack.be;
   const subj=`Signed DEC forms – ${pack.s.n} – ${pack.id}`, body=emailBody();
-  $("mailBtn").href=`mailto:${encodeURIComponent(pack.be)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  $("mailBtn").href=`mailto:?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
   const file=new File([pdfBlob],pdfName,{type:"application/pdf"});
   const canShareFile = !!(navigator.canShare && navigator.canShare({files:[file]}));
   const help=$("mailHelp");
@@ -322,9 +322,9 @@ function showDone(){
       return;
     }
     try{
-      const eml=await buildEml(pack.be,subj,body,pdfName,pdfBlob);
+      const eml=await buildEml(subj,body,pdfName,pdfBlob);
       saveBlob(new Blob([eml],{type:"message/rfc822"}), `Email - signed DEC forms - ${pack.id}.eml`);
-      help.hidden=false; help.innerHTML=`An email file has downloaded. <strong>Open it</strong> (from your browser's downloads) and it opens in Outlook as a ready-to-send email to <strong>${esc(pack.be)}</strong>, with the signed forms attached. Check it and press Send.<br><span style="font-size:13px">If it opens as a received message instead, use Forward, or download the PDF and attach it to a new email.</span>`;
+      help.hidden=false; help.innerHTML=`An email file has downloaded. <strong>Open it</strong> (from your browser's downloads) and it opens in Outlook as a ready-to-send email with the signed forms and a message already added. Enter <strong>${esc(pack.be)}</strong> in the To field and press Send.<br><span style="font-size:13px">If it opens as a received message instead, use Forward, or download the PDF and attach it to a new email.</span>`;
     }catch(e){ $("dlErr").textContent="The email couldn't be prepared. Please use Download PDF only and attach it to an email."; }
   };
   const dl=$("audit"); dl.innerHTML="";
@@ -365,10 +365,10 @@ ${r.signer.position}${r.signer.company?"\n"+r.signer.company:""}`;
 function b64wrap(b64){ return b64.replace(/.{1,76}/g,"$&\r\n"); }
 function utf8b64(t){ let x=""; enc.encode(t).forEach(b=>x+=String.fromCharCode(b)); return btoa(x); }
 async function blobB64(blob){ const bytes=new Uint8Array(await blob.arrayBuffer()); let s=""; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000)); return btoa(s); }
-async function buildEml(to,subject,body,filename,pdf){
+async function buildEml(subject,body,filename,pdf){
   const B="----=_CSR_"+Math.random().toString(36).slice(2), CRLF="\r\n";
   const safeName=filename.replace(/[^\w\- .]/g,"");
-  return ["To: "+to, "Subject: =?UTF-8?B?"+utf8b64(subject)+"?=", "X-Unsent: 1", "MIME-Version: 1.0", `Content-Type: multipart/mixed; boundary="${B}"`, "",
+  return ["Subject: =?UTF-8?B?"+utf8b64(subject)+"?=", "X-Unsent: 1", "MIME-Version: 1.0", `Content-Type: multipart/mixed; boundary="${B}"`, "",
     "--"+B, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", b64wrap(utf8b64(body.replace(/\n/g,CRLF))),
     "--"+B, `Content-Type: application/pdf; name="${safeName}"`, "Content-Transfer-Encoding: base64", `Content-Disposition: attachment; filename="${safeName}"`, "", b64wrap(await blobB64(pdf)),
     "--"+B+"--", ""].join(CRLF);
