@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-28-05">
+<meta name="build-version" content="2026-09-28-06">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – CSR Sustain</title>
@@ -70,6 +70,10 @@ tr.flag td{background:var(--warn-soft)}
 .tipbox{display:none;position:absolute;right:-6px;top:calc(100% + 8px);width:250px;background:var(--ink);color:#FFFFFF;font-weight:400;font-size:13px;line-height:1.45;text-align:left;padding:10px 12px;border-radius:8px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .tip:hover .tipbox,.tip:focus-within .tipbox{display:block}
 .steps-list{margin:0 0 4px;padding-left:20px;font-size:15px}
+.applist{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+@media (max-width:520px){.applist{grid-template-columns:1fr}}
+.appbtn{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--rule);border-radius:8px;background:var(--surface);color:var(--ink);text-decoration:none;min-height:46px}
+.appbtn:hover{border-color:var(--brand)} .appbtn span{font-size:13px;color:var(--ink-2)}
 .steps-list li{margin-bottom:4px}
 [hidden]{display:none!important}
 .site-head{display:grid;gap:12px 24px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:0}
@@ -176,7 +180,7 @@ tr.flag td{background:var(--warn-soft)}
       <button class="btn" type="button" id="dlBtn">Download PDF only</button>
     </div>
     <div class="note" id="mailHelp" style="margin-top:16px" hidden></div>
-    <p class="hint" style="margin-top:14px">No email app? <a id="mailBtn" style="color:var(--brand);font-weight:600">Open a blank email</a> and attach the PDF you downloaded.</p>
+    <a id="mailBtn" hidden></a>
     <div class="error" id="dlErr" role="alert"></div>
     <dl class="audit" id="audit"></dl>
   </section>
@@ -321,18 +325,29 @@ function showDone(){
   const file=new File([pdfBlob],pdfName,{type:"application/pdf"});
   const canShareFile = !!(navigator.canShare && navigator.canShare({files:[file]}));
   const help=$("mailHelp");
+  const chooser=()=>{
+    saveBlob(pdfBlob,pdfName);
+    const q=`subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+    const apps=[
+      ["Email app on this computer","Outlook, Mail or Thunderbird",$("mailBtn").href,false],
+      ["Outlook on the web","Microsoft 365 work or school account",`https://outlook.office.com/mail/deeplink/compose?${q}`,true],
+      ["Outlook.com / Hotmail","Personal Microsoft account",`https://outlook.live.com/mail/0/deeplink/compose?${q}`,true],
+      ["Gmail","Google account",`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`,true]];
+    help.hidden=false;
+    help.innerHTML=`<strong>Your signed forms have been saved to Downloads</strong> as <em>${esc(pdfName)}</em>.<br>Choose how you'd like to send them. A new email opens with the subject and message filled in – enter <strong>${esc(RETURN_EMAIL)}</strong>, attach the PDF and press Send.
+      <div class="applist">${apps.map(a=>`<a class="appbtn" href="${esc(a[2])}"${a[3]?' target="_blank" rel="noopener"':''}><strong>${esc(a[0])}</strong><span>${esc(a[1])}</span></a>`).join("")}</div>`;
+    help.scrollIntoView({behavior:"smooth",block:"nearest"});
+  };
   $("emailBtn").onclick=async()=>{
     $("dlErr").textContent="";
-    if(canShareFile && isMobile){
-      help.hidden=false; help.innerHTML=`Choose <strong>Mail</strong> or <strong>Outlook</strong>. The signed forms and a message are added for you. Enter <strong>${esc(RETURN_EMAIL)}</strong> in the To field and press Send.`;
-      try{ await navigator.share({files:[file],title:subj,text:body}); }catch(e){}
+    if(canShareFile){
+      help.hidden=false; help.innerHTML=`Choose the email app you want to use from the list. The signed forms and a message are attached for you – enter <strong>${esc(RETURN_EMAIL)}</strong> in the To field and press Send.<br><span style="font-size:13px">Your email app isn't in the list? <a href="#" id="altSend" style="color:var(--brand);font-weight:600">See other ways to send</a></span>`;
+      $("altSend").onclick=e=>{ e.preventDefault(); chooser(); };
+      try{ await navigator.share({files:[file],title:subj,text:body}); }
+      catch(e){ if(!e||e.name!=="AbortError") chooser(); }
       return;
     }
-    // Computers: browsers can't attach files to an email, so save the PDF and open a pre-written email
-    saveBlob(pdfBlob,pdfName);
-    help.hidden=false;
-    help.innerHTML=`<strong>Two quick steps:</strong><ol class="steps-list" style="margin-top:6px"><li>Your signed forms have been saved to your <strong>Downloads</strong> folder as <em>${esc(pdfName)}</em>.</li><li>A new email has opened with the subject and message filled in. Enter <strong>${esc(RETURN_EMAIL)}</strong>, click <strong>Attach</strong>, choose the file from Downloads and press Send.</li></ol><span style="font-size:13px">No email opened? Your computer may not have an email app set up – attach the downloaded PDF to an email from your usual email account instead.</span>`;
-    setTimeout(()=>{ location.href=$("mailBtn").href; },600);
+    chooser();
   };
   const dl=$("audit"); dl.innerHTML="";
   [["Pack reference",pack.id],["Signed by",`${record.signer.name}, ${record.signer.position}${record.signer.company?", "+record.signer.company:""}`],["Signed at",new Date(record.signedAt).toLocaleString("en-GB",{dateStyle:"long",timeStyle:"short"})]]
