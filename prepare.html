@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-25-03">
+<meta name="build-version" content="2026-09-28-01">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -43,7 +43,7 @@ input[type=checkbox]{width:22px;height:22px;margin:1px 0 0;accent-color:var(--br
 .tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:8px}
 table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
 th,td{padding:8px 10px;border-bottom:1px solid var(--rule);text-align:right}
-th:first-child,td:first-child{text-align:left}
+th:first-child,td:first-child{text-align:left;white-space:nowrap}
 thead th{font-size:13px;font-weight:600;color:var(--ink-2);background:var(--paper)}
 tfoot td{font-weight:700;background:var(--paper);border-bottom:0}
 td input{min-height:38px!important;padding:6px 8px!important;text-align:right}
@@ -60,6 +60,13 @@ tr.flag td{background:var(--warn-soft)}
 .note.bad{background:var(--bad-soft);color:var(--bad)}
 .error{color:var(--bad);font-size:14px;margin-top:10px;min-height:1em}
 .ok{color:var(--brand);font-size:14px;margin-top:8px;min-height:1em}
+.tip{position:relative;display:inline-block;vertical-align:middle;margin-left:4px}
+.qm{width:20px;height:20px;border-radius:50%;border:1px solid var(--brand);background:var(--surface);color:var(--brand);font:700 12px/1 "Segoe UI",system-ui,sans-serif;cursor:help;padding:0}
+.tipbox{display:none;position:absolute;right:-6px;top:calc(100% + 8px);width:250px;background:var(--ink);color:#FFFFFF;font-weight:400;font-size:13px;line-height:1.45;text-align:left;padding:10px 12px;border-radius:8px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.tip:hover .tipbox,.tip:focus-within .tipbox{display:block}
+.radios{display:flex;flex-wrap:wrap;gap:10px 24px;margin:4px 0 16px}
+.radios label{display:flex;gap:10px;align-items:center;font-weight:500}
+input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -100,10 +107,17 @@ tr.flag td{background:var(--warn-soft)}
 
   <section class="panel">
     <h2>Monthly consumption</h2>
+    <label>Who will enter the monthly energy data?</label>
+    <div class="radios" role="radiogroup">
+      <label><input type="radio" name="ed" value="csr" checked> CSR Sustain (enter it below)</label>
+      <label><input type="radio" name="ed" value="client"> The client (they enter it when they open the link)</label>
+    </div>
+    <div class="note" id="clientDataNote" hidden>The client will be asked to enter the monthly figures from their utility bills for the consumption period set above, including any fuel oil and renewables generation.</div>
+    <div id="csrData">
     <p class="hint">Monthly totals from the utility bills, not meter readings. Months well above the typical month are highlighted so you can check them before sending.</p>
     <div class="tablewrap">
       <table id="csrTable">
-        <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Renewables (kWh)</th></tr></thead>
+        <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Renewables generation (kWh)<span class="tip"><button type="button" class="qm" aria-label="About the renewables column">?</button><span class="tipbox" role="tooltip">Only if the site has renewables such as solar PV or wind. Enter the electricity <strong>generated</strong> each month in kWh, not consumed. Leave blank if there are none.</span></span></th></tr></thead>
         <tbody></tbody>
         <tfoot><tr><td>Total</td><td id="tE"></td><td id="tG"></td><td id="tO"></td><td id="tR"></td></tr></tfoot>
       </table>
@@ -111,6 +125,7 @@ tr.flag td{background:var(--warn-soft)}
     <div class="flagnote" id="flagNote"></div>
     <div class="grid" style="margin-top:14px">
       <div><label for="oilType">Fuel oil type (if any)</label><input type="text" id="oilType" placeholder="e.g. Gas oil / kerosene"></div>
+    </div>
     </div>
   </section>
 
@@ -176,6 +191,8 @@ function saveFile_unused(name, text){ const a=document.createElement("a"); a.hre
 // ---------- key handling (setup lives on keys.html) ----------
 async function checkKey(){
   const warn=t=>{ $("keyBannerText").textContent=t; $("keyBanner").hidden=false; };
+  if (location.protocol==="file:"){ localCopy=true; $("keyBanner").className="note bad"; $("keyBanner").querySelector("a").href="https://csrsustain.github.io/dec-evidence-pack/prepare.html"; $("keyBanner").querySelector("a").textContent="Open the website version";
+    return warn("This is a copy of the page saved on your computer, so links made here won't open for clients."); }
   if (!window.crypto || !crypto.subtle) return warn("This browser can't create seals here. Open this page from its https:// GitHub Pages address.");
   const saved=store.get(KEY_STORE);
   if (saved){ try{ privKey=await crypto.subtle.importKey("jwk", cleanJwk(saved.priv), ECDSA, false, ["sign"]); keyPair=saved; }catch(e){ privKey=null; } }
@@ -223,25 +240,32 @@ function collect(){
     s:{n:$("siteName").value.trim(), b:$("building").value.trim(), a:$("address").value.trim(), pc:$("postcode").value.trim().toUpperCase(), g:$("gia").value.trim()},
     ps:$("pStart").value, pe:$("pEnd").value,
     f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0},
-    m: readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4])]),
-    ot:$("oilType").value.trim(), cn:$("cName").value.trim(), by:$("by").value.trim(), be:$("be").value.trim(), c:new Date().toISOString() };
+    ed: dataMode(),
+    m: dataMode()==="client" ? [] : readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4])]),
+    ot: dataMode()==="client" ? "" : $("oilType").value.trim(), cn:$("cName").value.trim(), by:$("by").value.trim(), be:$("be").value.trim(), c:new Date().toISOString() };
 }
 function fill(p){
   $("siteName").value=p.s.n; $("building").value=p.s.b; $("address").value=p.s.a; $("postcode").value=p.s.pc; $("gia").value=p.s.g;
   $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v;
   $("oilType").value=p.ot||""; $("cName").value=p.cn||""; $("by").value=p.by||""; $("be").value=p.be||"";
-  buildTable(p.m.map(r=>[r[0],r[1],r[2],r[3],r[4]]));
+  setDataMode(p.ed==="client"?"client":"csr");
+  buildTable((p.m||[]).map(r=>[r[0],r[1],r[2],r[3],r[4]]));
 }
+function dataMode(){ const r=document.querySelector('input[name="ed"]:checked'); return r?r.value:"csr"; }
+function setDataMode(m){ document.querySelectorAll('input[name="ed"]').forEach(r=>r.checked=(r.value===m)); applyDataMode(); }
+function applyDataMode(){ const c=dataMode()==="client"; $("csrData").hidden=c; $("clientDataNote").hidden=!c; }
+document.querySelectorAll('input[name="ed"]').forEach(r=>r.addEventListener("change",applyDataMode));
 $("newPack").addEventListener("click",()=>{
   if(!confirm("Clear the form and start a new pack?")) return;
-  FIELDS.forEach(f=>{ if(f!=="by"&&f!=="be") $(f).value=""; }); $("pStart").value=""; buildTable([]); $("outPanel").hidden=true; window.scrollTo(0,0);
+  FIELDS.forEach(f=>{ if(f!=="by"&&f!=="be") $(f).value=""; }); $("pStart").value=""; setDataMode("csr"); buildTable([]); $("outPanel").hidden=true; window.scrollTo(0,0);
 });
 
 // ---------- create link ----------
-let current=null;
+let current=null, localCopy=false;
 $("makeLink").addEventListener("click", async ()=>{
   const err=$("mkErr"); err.textContent="";
   const probs=[];
+  if(localCopy){ err.textContent="Links can only be created from the website: https://csrsustain.github.io/dec-evidence-pack/prepare.html"; return; }
   if(!privKey) probs.push("set up the seal key (Seal key settings, at the bottom of the page)");
   if(!$("siteName").value.trim()) probs.push("enter the site name");
   if(!$("postcode").value.trim()) probs.push("enter the postcode");
@@ -268,7 +292,7 @@ $("copyEmail").addEventListener("click",()=>{
   const p=current.pack;
   const t=`Dear ${p.cn||"Sir/Madam"},
 
-As part of your Display Energy Certificate (DEC) for ${p.s.n}${p.s.b?", "+p.s.b:""}, we need you to confirm the energy data and opening hours for ${ukDate(p.ps)} to ${ukDate(p.pe)}.
+As part of your Display Energy Certificate (DEC) for ${p.s.n}${p.s.b?", "+p.s.b:""}, we need you to ${p.ed==="client"?"provide":"confirm"} the energy data${p.f.h?" and opening hours":""} for ${ukDate(p.ps)} to ${ukDate(p.pe)}.
 
 Please open the secure link below on your computer, tablet or phone. It takes about five minutes and there is nothing to print:
 
