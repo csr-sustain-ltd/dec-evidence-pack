@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-29-06">
+<meta name="build-version" content="2026-09-29-07">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -102,6 +102,7 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
         <label><input type="checkbox" id="fHours" checked> Confirmation of opening hours</label>
         <label><input type="checkbox" id="fValid" checked> Energy data validation</label>
         <label><input type="checkbox" id="fAsset"> Confirmation of no asset change (DEC renewal)</label>
+        <label><input type="checkbox" id="fQuest"> DEC questionnaire <span style="font-weight:400;color:var(--ink-2)">(sent as a separate link in the email)</span></label>
       </div>
     </div>
   </section>
@@ -269,6 +270,7 @@ attachPaste($("csrTable"), recalc, $("pasteMsg"));
 $("csrTable").addEventListener("focusout",e=>{ if(e.target.tagName==="INPUT"&&e.target.value.trim()!=="") e.target.value=fmt(num(e.target.value)); });
 
 // ---------- form state ----------
+const QUEST_URL="https://csr-sustain-ltd.github.io/DEC-questionnaire/";
 const RETURN_EMAIL="michelle@csrsustain.co.uk";
 function askLine(p){
   const parts=[];
@@ -284,7 +286,7 @@ function collect(){
   return { v:2, id:newRef(), as:$("assessor").value,
     s:{n:$("siteName").value.trim(), b:$("building").value.trim(), a:$("address").value.trim(), pc:$("postcode").value.trim().toUpperCase(), g:$("gia").value.trim()},
     ps:$("pStart").value, pe:$("pEnd").value,
-    f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0, n:$("fAsset").checked?1:0},
+    f:{e:$("fEnergy").checked?1:0, h:$("fHours").checked?1:0, v:$("fValid").checked?1:0, n:$("fAsset").checked?1:0}, q:$("fQuest").checked?1:0,
     ed: dataMode(),
     m: dataMode()==="client" ? [] : readRows().map(r=>[r[0],num(r[1]),num(r[2]),num(r[3]),num(r[4]),num(r[5])]),
     src: dataMode()==="client" ? [] : srcList(), so: dataMode()==="client"||!$("srcO").checked ? "" : $("srcOther").value.trim(),
@@ -293,7 +295,7 @@ function collect(){
 }
 function fill(p){
   $("siteName").value=p.s.n; $("building").value=p.s.b; $("address").value=p.s.a; $("postcode").value=p.s.pc; $("gia").value=p.s.g;
-  $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v; $("fAsset").checked=!!p.f.n;
+  $("pStart").value=p.ps; $("fEnergy").checked=!!p.f.e; $("fHours").checked=!!p.f.h; $("fValid").checked=!!p.f.v; $("fAsset").checked=!!p.f.n; $("fQuest").checked=!!p.q;
   $("oilType").value=p.ot||""; $("bType").value=p.bt||""; $("bCv").value=p.bcv||""; if(p.as) $("assessor").value=p.as; $("cName").value=p.cn||""; $("by").value=p.by||"";
   setSrc(p.src||[], p.so||"");
   setDataMode(p.ed==="client"?"client":"csr");
@@ -326,7 +328,7 @@ $("makeLink").addEventListener("click", async ()=>{
   if(!$("siteName").value.trim()) probs.push("enter the site name");
   if(!$("postcode").value.trim()) probs.push("enter the postcode");
   if(!$("pStart").value&&($("fEnergy").checked||$("fValid").checked)) probs.push("choose the consumption period start");
-  if(!$("fEnergy").checked&&!$("fHours").checked&&!$("fValid").checked&&!$("fAsset").checked) probs.push("tick at least one form");
+  if(!$("fEnergy").checked&&!$("fHours").checked&&!$("fValid").checked&&!$("fAsset").checked) probs.push("tick at least one form to be signed (the DEC questionnaire is an extra link)");
   if(probs.length){ err.textContent="Before creating the link, "+probs.join(", ")+"."; return; }
   const pack=collect();
   const payload=b64u(enc.encode(JSON.stringify(pack)));
@@ -344,7 +346,7 @@ async function copyText(t,msg){
 }
 $("copyLink").addEventListener("click",()=>copyText(current.url,"Link copied. Paste it into your email to the client."));
 $("copyEmail").addEventListener("click",async()=>{
-  const p=current.pack, LINK="\u0000LINK\u0000";
+  const p=current.pack, LINK="\u0000LINK\u0000", QLINK="\u0000QLINK\u0000";
   const t=`Dear ${p.cn||"Sir/Madam"},
 
 As part of your Display Energy Certificate (DEC) for ${p.s.n}${p.s.b?", "+p.s.b:""}, ${askLine(p)}
@@ -352,7 +354,11 @@ As part of your Display Energy Certificate (DEC) for ${p.s.n}${p.s.b?", "+p.s.b:
 Please open the secure link below on your computer, tablet or phone. It takes about five minutes and there is nothing to print:
 
 ${LINK}
+${p.q?`
+Please also complete our short DEC questionnaire:
 
+${QLINK}
+`:""}
 Once signed, please click “Email the signed forms” and send them to ${RETURN_EMAIL}.
 
 Kind regards,
@@ -360,8 +366,9 @@ ${p.by||"CSR Sustain"}
 CSR Sustain`;
   const escH=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const linkHtml=`<a href="${escH(current.url)}" style="color:#2D6A6A;font-weight:bold;text-decoration:underline">Click Link</a>`;
-  const html=`<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1E293B">`+t.split("\n\n").map(par=>"<p style=\"margin:0 0 12pt\">"+escH(par).replace(/\n/g,"<br>").replace(escH(LINK),linkHtml)+"</p>").join("")+`</div>`;
-  const plain=t.replace(LINK,current.url);
+  const qHtml=`<a href="${QUEST_URL}" style="color:#2D6A6A;font-weight:bold;text-decoration:underline">DEC Questionnaire</a>`;
+  const html=`<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1E293B">`+t.split("\n\n").map(par=>"<p style=\"margin:0 0 12pt\">"+escH(par).replace(/\n/g,"<br>").replace(escH(LINK),linkHtml).replace(escH(QLINK),qHtml)+"</p>").join("")+`</div>`;
+  const plain=t.replace(LINK,current.url).replace(QLINK,QUEST_URL);
   const ok="Email text copied. Paste it into Outlook – the link shows as “Click Link”.";
   try{
     if(!window.ClipboardItem||!navigator.clipboard.write) throw 0;
