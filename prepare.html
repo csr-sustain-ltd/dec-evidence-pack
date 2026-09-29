@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-29-04">
+<meta name="build-version" content="2026-09-29-06">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -125,7 +125,6 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
     </div>
     <div id="srcOtherWrap" hidden style="margin-top:10px;max-width:520px"><label for="srcOther">Other source</label><input type="text" id="srcOther" placeholder="e.g. Meter readings supplied by the site"></div>
     <p class="hint" style="margin-top:16px">Monthly totals, not meter readings. Months well above the typical month are highlighted so you can check them before sending.</p>
-    <p class="hint"><strong>Tip:</strong> you can copy figures from Excel or an exported spreadsheet and paste them straight in. Click the first cell to fill (for example July electricity) and press <strong>Ctrl+V</strong> (or ⌘+V on a Mac). Whole columns or blocks are filled in one go; month labels and headings are ignored.</p>
     <div class="tablewrap">
       <table id="csrTable">
         <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Biomass (kg)<span class="tip"><button type="button" class="qm" aria-label="About the biomass column">?</button><span class="tipbox" role="tooltip">Only if the building uses a biomass fuel (e.g. wood pellets or chips). Enter the amount used each month in kg. Please also state the biomass fuel type and the calorific value, which you can obtain from your fuel provider.</span></span></th><th>Renewables generation (kWh)<span class="tip"><button type="button" class="qm" aria-label="About the renewables column">?</button><span class="tipbox" role="tooltip">Only if the site has renewables such as solar PV or wind. Enter the electricity <strong>generated</strong> each month in kWh, not consumed. Leave blank if there are none.</span></span></th></tr></thead>
@@ -344,23 +343,40 @@ async function copyText(t,msg){
   catch(e){ $("outLink").select(); $("copyMsg").textContent="Couldn't copy automatically – the link is selected, press Ctrl+C (or Cmd+C)."; }
 }
 $("copyLink").addEventListener("click",()=>copyText(current.url,"Link copied. Paste it into your email to the client."));
-$("copyEmail").addEventListener("click",()=>{
-  const p=current.pack;
+$("copyEmail").addEventListener("click",async()=>{
+  const p=current.pack, LINK="\u0000LINK\u0000";
   const t=`Dear ${p.cn||"Sir/Madam"},
 
 As part of your Display Energy Certificate (DEC) for ${p.s.n}${p.s.b?", "+p.s.b:""}, ${askLine(p)}
 
 Please open the secure link below on your computer, tablet or phone. It takes about five minutes and there is nothing to print:
 
-${current.url}
+${LINK}
 
 Once signed, please click “Email the signed forms” and send them to ${RETURN_EMAIL}.
 
 Kind regards,
 ${p.by||"CSR Sustain"}
 CSR Sustain`;
-  copyText(t,"Email text copied, including the link.");
+  const escH=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const linkHtml=`<a href="${escH(current.url)}" style="color:#2D6A6A;font-weight:bold;text-decoration:underline">Click Link</a>`;
+  const html=`<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1E293B">`+t.split("\n\n").map(par=>"<p style=\"margin:0 0 12pt\">"+escH(par).replace(/\n/g,"<br>").replace(escH(LINK),linkHtml)+"</p>").join("")+`</div>`;
+  const plain=t.replace(LINK,current.url);
+  const ok="Email text copied. Paste it into Outlook – the link shows as “Click Link”.";
+  try{
+    if(!window.ClipboardItem||!navigator.clipboard.write) throw 0;
+    await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([plain],{type:"text/plain"})})]);
+    $("copyMsg").textContent=ok; return;
+  }catch(e){}
+  try{ // older browsers: copy a rich-text selection
+    const box=document.createElement("div"); box.contentEditable="true"; box.style.cssText="position:fixed;left:-9999px;top:0"; box.innerHTML=html; document.body.appendChild(box);
+    const r=document.createRange(); r.selectNodeContents(box); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    const done=document.execCommand("copy"); sel.removeAllRanges(); box.remove(); if(!done) throw 0;
+    $("copyMsg").textContent=ok; return;
+  }catch(e){}
+  copyText(plain,"Email text copied (this browser could only copy plain text, so the full link is shown).");
 });
+
 
 // ---------- recent ----------
 function renderRecent(){
