@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-29-03">
+<meta name="build-version" content="2026-09-29-04">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – Preparation (CSR Sustain)</title>
@@ -125,6 +125,7 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
     </div>
     <div id="srcOtherWrap" hidden style="margin-top:10px;max-width:520px"><label for="srcOther">Other source</label><input type="text" id="srcOther" placeholder="e.g. Meter readings supplied by the site"></div>
     <p class="hint" style="margin-top:16px">Monthly totals, not meter readings. Months well above the typical month are highlighted so you can check them before sending.</p>
+    <p class="hint"><strong>Tip:</strong> you can copy figures from Excel or an exported spreadsheet and paste them straight in. Click the first cell to fill (for example July electricity) and press <strong>Ctrl+V</strong> (or ⌘+V on a Mac). Whole columns or blocks are filled in one go; month labels and headings are ignored.</p>
     <div class="tablewrap">
       <table id="csrTable">
         <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Biomass (kg)<span class="tip"><button type="button" class="qm" aria-label="About the biomass column">?</button><span class="tipbox" role="tooltip">Only if the building uses a biomass fuel (e.g. wood pellets or chips). Enter the amount used each month in kg. Please also state the biomass fuel type and the calorific value, which you can obtain from your fuel provider.</span></span></th><th>Renewables generation (kWh)<span class="tip"><button type="button" class="qm" aria-label="About the renewables column">?</button><span class="tipbox" role="tooltip">Only if the site has renewables such as solar PV or wind. Enter the electricity <strong>generated</strong> each month in kWh, not consumed. Leave blank if there are none.</span></span></th></tr></thead>
@@ -132,6 +133,7 @@ input[type=radio]{width:20px;height:20px;margin:0;accent-color:var(--brand)}
         <tfoot><tr><td>Total</td><td id="tE"></td><td id="tG"></td><td id="tO"></td><td id="tB"></td><td id="tR"></td></tr></tfoot>
       </table>
     </div>
+    <div class="ok" id="pasteMsg" role="status"></div>
     <div class="flagnote" id="flagNote"></div>
     <div class="grid" style="margin-top:14px">
       <div><label for="oilType">Fuel oil type (if any)</label><input type="text" id="oilType" placeholder="e.g. Gas oil / kerosene"></div>
@@ -243,6 +245,28 @@ function recalc(){
 }
 $("pStart").addEventListener("change",()=>buildTable());
 $("csrTable").addEventListener("input",recalc);
+
+// ---------- paste from a spreadsheet ----------
+function attachPaste(table, after, msgEl){
+  const isText=c=>{ c=c.trim(); return c!=="" && !/^[\d\-.£(]/.test(c); };
+  table.addEventListener("paste", e=>{
+    const t=e.target; if(t.tagName!=="INPUT") return;
+    const text=(e.clipboardData||window.clipboardData).getData("text"); if(!text) return;
+    let grid=text.replace(/\r/g,"").split("\n"); while(grid.length&&grid[grid.length-1].trim()==="") grid.pop();
+    grid=grid.map(r=>r.split("\t"));
+    if(grid.length===1&&grid[0].length===1&&!isText(grid[0][0])){ e.preventDefault(); const v=grid[0][0].replace(/[^\d.,\-]/g,""); t.value=v===""?"":fmt(num(v)); after(); return; }
+    e.preventDefault();
+    grid=grid.filter(r=>!r.every(c=>c.trim()===""||isText(c)));            // drop header rows
+    if(grid.length&&grid.every(r=>r.length>1&&isText(r[0]))) grid=grid.map(r=>r.slice(1)); // drop month-label column
+    const rows=[...table.tBodies[0].rows], tr0=t.closest("tr"), r0=rows.indexOf(tr0), c0=[...tr0.querySelectorAll("input")].indexOf(t);
+    let filled=0, skipped=0;
+    grid.forEach((row,i)=>{ const tr=rows[r0+i]; if(!tr){ skipped++; return; } const ins=tr.querySelectorAll("input");
+      row.forEach((cell,j)=>{ const inp=ins[c0+j]; if(!inp) return; const v=cell.trim().replace(/[^\d.,\-]/g,""); inp.value=(v===""||v==="-")?"":fmt(num(v)); filled++; }); });
+    after();
+    if(msgEl){ msgEl.textContent = `Pasted ${filled} value${filled===1?"":"s"}.` + (skipped?` ${skipped} extra row${skipped===1?" was":"s were"} ignored – the table has 12 months.`:"") + " Please check the figures."; }
+  });
+}
+attachPaste($("csrTable"), recalc, $("pasteMsg"));
 $("csrTable").addEventListener("focusout",e=>{ if(e.target.tagName==="INPUT"&&e.target.value.trim()!=="") e.target.value=fmt(num(e.target.value)); });
 
 // ---------- form state ----------

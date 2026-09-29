@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build-version" content="2026-09-29-03">
+<meta name="build-version" content="2026-09-29-04">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>DEC evidence pack – CSR Sustain</title>
@@ -124,6 +124,7 @@ input[type=radio]{width:22px;height:22px;margin:0;accent-color:var(--brand);flex
       <div>
         <h2 id="eTitle">Check the energy data</h2>
         <p class="hint" id="eHint">Monthly figures from your utility bills for the period shown. If anything looks wrong, say so below, or contact CSR Sustain before signing.</p>
+        <p class="hint" id="pasteTip" hidden><strong>Tip:</strong> you can copy figures from Excel or an exported spreadsheet and paste them straight in. Click the first cell to fill (for example July electricity) and press <strong>Ctrl+V</strong> (or ⌘+V on a Mac). Whole columns or blocks are filled in one go; month labels and headings are ignored.</p>
         <div class="tablewrap">
           <table id="cTable">
             <thead><tr><th>Month</th><th>Electricity (kWh)</th><th>Natural gas (kWh)</th><th>Fuel oil (litres)</th><th>Biomass (kg)<span class="tip"><button type="button" class="qm" aria-label="About the biomass column">?</button><span class="tipbox" role="tooltip">Only if the building uses a biomass fuel (e.g. wood pellets or chips). Enter the amount used each month in kg. Please also state the biomass fuel type and the calorific value, which you can obtain from your fuel provider.</span></span></th><th>Renewables generation (kWh)<span class="tip"><button type="button" class="qm" aria-label="About the renewables column">?</button><span class="tipbox" role="tooltip">Only if the site has renewables such as solar PV or wind. Enter the electricity <strong>generated</strong> each month in kWh, not consumed. Leave blank if there are none.</span></span></th></tr></thead>
@@ -131,6 +132,7 @@ input[type=radio]{width:22px;height:22px;margin:0;accent-color:var(--brand);flex
           </table>
         </div>
         <p class="hint" id="oilLine" style="margin-top:10px"></p>
+        <div class="ok" id="pasteMsg" role="status"></div>
         <p class="hint" id="bioHint" hidden style="margin-top:10px">If your building uses a biomass fuel, please state the biomass fuel type and the calorific value (obtain this from your fuel provider) below.</p>
         <div class="grid" id="oilWrap" hidden style="margin-top:12px"><div><label for="cOil">Fuel oil type (if any)</label><input type="text" id="cOil" placeholder="e.g. Gas oil / kerosene"></div><div><label for="cBType">Biomass fuel type (if any)</label><input type="text" id="cBType" placeholder="e.g. Wood pellets"></div><div><label for="cBCv">Biomass calorific value</label><input type="text" id="cBCv" placeholder="e.g. 4.8 kWh/kg (from your provider)"></div></div>
         <div style="margin-top:10px"><label for="cQuery" id="qLabel">Does anything not look correct? (optional)</label>
@@ -227,7 +229,9 @@ function srcText(p){ const l=(p.src||[]).filter(c=>c!=="o").map(c=>SRC_LABELS[c]
 const lc1=t=>t.charAt(0).toLowerCase()+t.slice(1);
 const normRow=r=>r.length===5?[r[0],r[1],r[2],r[3],0,r[4]]:r;
 const ASSET_CHANGES=["The addition of a building or buildings", "The addition of an extension", "The refurbishment of any part of the building", "The upgrade or replacement of any building services plant (e.g. boiler)", "The switching of a fuel source (e.g. from oil to gas)", "The installation or replacement of energy meters", "The addition of any renewable energy sources"];
-const DECL_VALID="I/We confirm that the energy consumption data provided in the tables is an accurate reflection of the building/site energy consumption and is in line with the information provided by the meter’s utility supplier. No changes to the method of energy metering have occurred since the last DEC (Display Energy Certificate) was produced.";
+const DECL_VALID="I/We confirm that the energy consumption data provided in the tables is an accurate reflection of the building/site energy consumption and is in line with the information provided by the meter’s utility supplier.";
+const DECL_METER="No changes to the method of energy metering have occurred since the last DEC (Display Energy Certificate) was produced.";
+const meterLine=(asset)=>pack.f.n&&!(asset&&asset.changed)?" "+DECL_METER:"";
 const DECL_HOURS="Published opening hours when the building is fully open to the public or, in the absence of published opening hours, operational/opening hours when the building occupancy exceeds 25% of normal maximum occupancy/capacity, for the previous 12 months.";
 let pack=null, seal="", record=null, pdfBlob=null, pdfName="";
 
@@ -267,7 +271,7 @@ function render(){
   [...document.querySelectorAll("section.step")].filter(s=>!s.hidden).forEach((s,i)=>s.querySelector(".num").textContent=i+1);
   document.querySelectorAll('input[name="asset"]').forEach(r=>r.addEventListener("change",()=>{ $("assetDetailsWrap").hidden=assetChoice()!=="changed"; updateDecl(); }));
   updateDecl();
-  if(clientEnters()&&(pack.f.e||pack.f.v)){ $("eTitle").textContent="Enter the energy data"; $("eHint").textContent=`Enter the monthly kWh for gas and electric from your utility bills for ${ukDate(pack.ps)} to ${ukDate(pack.pe)} – the amount used each month, not meter readings. Leave a column blank if the site doesn't use that fuel.`; $("oilWrap").hidden=false; $("bioHint").hidden=false; $("cQuery").placeholder="e.g. March gas bill was estimated"; }
+  if(clientEnters()&&(pack.f.e||pack.f.v)){ $("eTitle").textContent="Enter the energy data"; $("eHint").innerHTML=`Enter the monthly <strong>kWh</strong> for gas and electric from your utility bills for ${ukDate(pack.ps)} to ${ukDate(pack.pe)} – <strong>do not</strong> enter actual meter readings. Leave a column blank if the site doesn't use that fuel.`; $("pasteTip").hidden=false; $("oilWrap").hidden=false; $("bioHint").hidden=false; $("cQuery").placeholder="e.g. March gas bill was estimated"; }
   if(pack.f.h) addHoursRow("Monday–Friday","","08:00","16:00");
   if(pack.cn) $("sName").value=pack.cn;
   updateTyped(); requestAnimationFrame(sizePad);
@@ -387,11 +391,33 @@ function showDone(){
 function saveBlob(blob,name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000); }
 $("dlBtn").addEventListener("click",()=>saveBlob(pdfBlob,pdfName));
 
+
+// ---------- paste from a spreadsheet ----------
+function attachPaste(table, after, msgEl){
+  const isText=c=>{ c=c.trim(); return c!=="" && !/^[\d\-.£(]/.test(c); };
+  table.addEventListener("paste", e=>{
+    const t=e.target; if(t.tagName!=="INPUT") return;
+    const text=(e.clipboardData||window.clipboardData).getData("text"); if(!text) return;
+    let grid=text.replace(/\r/g,"").split("\n"); while(grid.length&&grid[grid.length-1].trim()==="") grid.pop();
+    grid=grid.map(r=>r.split("\t"));
+    if(grid.length===1&&grid[0].length===1&&!isText(grid[0][0])){ e.preventDefault(); const v=grid[0][0].replace(/[^\d.,\-]/g,""); t.value=v===""?"":fmt(num(v)); after(); return; }
+    e.preventDefault();
+    grid=grid.filter(r=>!r.every(c=>c.trim()===""||isText(c)));            // drop header rows
+    if(grid.length&&grid.every(r=>r.length>1&&isText(r[0]))) grid=grid.map(r=>r.slice(1)); // drop month-label column
+    const rows=[...table.tBodies[0].rows], tr0=t.closest("tr"), r0=rows.indexOf(tr0), c0=[...tr0.querySelectorAll("input")].indexOf(t);
+    let filled=0, skipped=0;
+    grid.forEach((row,i)=>{ const tr=rows[r0+i]; if(!tr){ skipped++; return; } const ins=tr.querySelectorAll("input");
+      row.forEach((cell,j)=>{ const inp=ins[c0+j]; if(!inp) return; const v=cell.trim().replace(/[^\d.,\-]/g,""); inp.value=(v===""||v==="-")?"":fmt(num(v)); filled++; }); });
+    after();
+    if(msgEl){ msgEl.textContent = `Pasted ${filled} value${filled===1?"":"s"}.` + (skipped?` ${skipped} extra row${skipped===1?" was":"s were"} ignored – the table has 12 months.`:"") + " Please check the figures."; }
+  });
+}
+
 // ---------- client-entered data ----------
 const clientEnters=()=>pack.ed==="client";
 const assetChoice=()=>{ const r=document.querySelector('input[name="asset"]:checked'); return r?r.value:""; };
 function updateDecl(){
-  const parts=[pack.f.v?DECL_VALID:"", pack.f.h?"I also confirm the opening hours declared above for the previous 12 months.":"", pack.f.e&&!pack.f.v?"I confirm the energy data above is accurate.":""];
+  const parts=[pack.f.v?DECL_VALID+meterLine({changed:assetChoice()==="changed"}):"", pack.f.h?"I also confirm the opening hours declared above for the previous 12 months.":"", pack.f.e&&!pack.f.v?"I confirm the energy data above is accurate.":""];
   if((pack.f.e||pack.f.v)&&!clientEnters()&&srcText(pack)) parts.push(`I confirm the energy data source: ${srcText(pack)}.`);
   if(pack.f.n) parts.push(assetChoice()==="changed"?"I confirm the changes to the building described above since the last Display Energy Certificate assessment.":"I confirm that the building has undergone no material changes since the last Display Energy Certificate assessment.");
   $("declText").textContent=parts.filter(Boolean).join(" ");
@@ -403,6 +429,7 @@ function buildEntryTable(){
     names.forEach(n=>{ const td=document.createElement("td"); const i=document.createElement("input"); i.type="text"; i.inputMode="decimal"; i.setAttribute("aria-label",m+" "+n); td.appendChild(i); tr.appendChild(td); });
     tb.appendChild(tr); });
   $("cTable").addEventListener("input",entryTotals);
+  attachPaste($("cTable"), entryTotals, $("pasteMsg"));
   $("cTable").addEventListener("focusout",e=>{ if(e.target.tagName==="INPUT"&&e.target.value.trim()!=="") e.target.value=fmt(num(e.target.value)); });
   entryTotals();
 }
@@ -476,12 +503,12 @@ function buildPdf(){
   if(p.f.v){
     let y=page("Energy Data – Validation");
     doc.text(`Gas: ${ukDate(p.ps)} to ${ukDate(p.pe)}          Electricity: ${ukDate(p.ps)} to ${ukDate(p.pe)}`,M,y); y+=8;
-    y=wrap(DECL_VALID,y)+8; sigBlock(y);
+    y=wrap(DECL_VALID+meterLine(r.asset),y)+8; sigBlock(y);
   }
   if(p.f.n){
     const ch=r.asset&&r.asset.changed;
     let y=page(ch?"DEC Renewal – Declaration of Asset Change":"DEC Renewal – Confirmation of No Asset Change");
-    y=wrap(ch?"The signer has declared that the building has undergone material change since the last Display Energy Certificate assessment, as described below.":"I hereby confirm that the building has undergone no material changes since the last Display Energy Certificate assessment.",y)+3;
+    y=wrap(ch?"The signer has declared that the building has undergone material change since the last Display Energy Certificate assessment, as described below.":"I hereby confirm that the building has undergone no material changes since the last Display Energy Certificate assessment."+(p.f.v?"":" "+DECL_METER),y)+3;
     doc.setFont("helvetica","bold"); doc.text("Material change would include:",M,y); doc.setFont("helvetica","normal"); y+=6;
     ASSET_CHANGES.forEach(c=>{ doc.text("•",M+2,y); const l=doc.splitTextToSize(c,W-2*M-8); doc.text(l,M+7,y); y+=l.length*5; }); y+=4;
     if(ch){ doc.setFont("helvetica","bold"); doc.setTextColor(...teal); doc.text("Changes declared by the signer:",M,y); doc.setFont("helvetica","normal"); doc.setTextColor(...ink); y=wrap(r.asset.details,y+5)+4; }
